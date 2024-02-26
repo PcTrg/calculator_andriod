@@ -56,6 +56,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         btn.setOnClickListener(this);
     }
 
+    public static boolean checkBalancedParentheses(String input) {
+        int counter = 0;
+
+        for (char ch : input.toCharArray()) {
+            if (ch == '(') {
+                counter++;
+            } else if (ch == ')') {
+                counter--;
+            }
+        }
+
+        if(counter>0) return true;
+        return false;
+    }
+
     @Override
     public void onClick(View view) {
         MaterialButton button =(MaterialButton) view;
@@ -67,6 +82,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             resultTv.setText("0");
             return;
         }
+
+        if(buttonText.equals("sin") || buttonText.equals("cos") || buttonText.equals("tan") || buttonText.equals("cot")){
+            solutionTv.setText(dataToCalculate.concat(buttonText.concat("(")));
+            return;
+        }
+
+        if(buttonText.equals(")")){
+            if(!checkBalancedParentheses(dataToCalculate)) return;
+        }
+
         if(buttonText.equals("=")){
             solutionTv.setText(resultTv.getText());
             return;
