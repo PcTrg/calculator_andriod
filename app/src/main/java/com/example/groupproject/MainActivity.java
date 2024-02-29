@@ -8,6 +8,8 @@ import android.widget.TextView;
 
 import com.google.android.material.button.MaterialButton;
 
+import java.util.Stack;
+
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
     TextView resultTv,solutionTv;
@@ -103,7 +105,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         solutionTv.setText(dataToCalculate);
 
-        String finalResult = getResult(dataToCalculate);
+        String finalResult = solve(dataToCalculate);
 
         if(!finalResult.equals("Err")){
             resultTv.setText(finalResult);
@@ -111,14 +113,176 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     }
 
-    String getResult(String data){
-        try{
-            String finalResult =  "";
-            // xử lý kết quả
+    public static String solve(String equation) {
+        Stack<Double> numbers = new Stack<>();
+        Stack<Character> operators = new Stack<>();
 
-            return finalResult;
-        }catch (Exception e){
-            return "Err";
+        for (int i = 0; i < equation.length(); i++) {
+            char c = equation.charAt(i);
+            if (Character.isDigit(c)) {
+                // Build the number
+                StringBuilder numberBuilder = new StringBuilder();
+                while (i < equation.length() && (Character.isDigit(equation.charAt(i)) || equation.charAt(i) == '.')) {
+                    numberBuilder.append(equation.charAt(i));
+                    i++;
+                }
+                i--; // decrement i to offset the outer loop's increment
+                numbers.push(Double.parseDouble(numberBuilder.toString()));
+            } else if (c == '+' || c == '-' || c == '*' || c == '/' || c == '(') {
+                // Process operator based on precedence
+                while (!operators.isEmpty() && c != '(' && hasHigherPrecedence(operators.peek(), c)) {
+                    if (numbers.size() < 2) {
+                        return "Error: The equation is not properly formatted.";
+                    }
+                    processOperation(numbers, operators);
+                }
+                operators.push(c);
+            } else if (c == ')') {
+                // Process operators until the corresponding opening bracket
+                while (!operators.isEmpty() && operators.peek() != '(') {
+                    if (numbers.size() < 2) {
+                        return "Error: The equation is not properly formatted.";
+                    }
+                    processOperation(numbers, operators);
+                }
+                if (operators.isEmpty()) {
+                    return "Error: Mismatched brackets in the equation.";
+                }
+                operators.pop(); // Remove the opening bracket
+            } else if (i < equation.length() - 4) {
+                String function = equation.substring(i, i + 5);
+                if (function.equals("sin^-") || function.equals("cos^-") || function.equals("tan^-")) {
+                    i += 5; // Skip the function name and the opening bracket
+                    // Build the number
+                    StringBuilder numberBuilder = new StringBuilder();
+                    while (i < equation.length() && (Character.isDigit(equation.charAt(i)) || equation.charAt(i) == '.')) {
+                        numberBuilder.append(equation.charAt(i));
+                        i++;
+                    }
+                    if (numberBuilder.length() == 0) {
+                        return "Error: The equation is not properly formatted.";
+                    }
+                    double number = Double.parseDouble(numberBuilder.toString());
+                    // Apply the function
+                    switch (function) {
+                        case "sin^-":
+                            numbers.push(Math.asin(number));
+                            break;
+                        case "cos^-":
+                            numbers.push(Math.acos(number));
+                            break;
+                        case "tan^-":
+                            numbers.push(Math.atan(number));
+                            break;
+                    }
+                } else if (i < equation.length() - 3) {
+                    function = equation.substring(i, i + 3);
+                    if (function.equals("sin") || function.equals("cos") || function.equals("tan") || function.equals("log") || function.equals("sqt")) {
+                        i += 3; // Skip the function name
+                        if (equation.charAt(i) == '(') {
+                            i++; // Skip the opening bracket
+                        }
+                        // Build the number
+                        StringBuilder numberBuilder = new StringBuilder();
+                        while (i < equation.length() && (Character.isDigit(equation.charAt(i)) || equation.charAt(i) == '.')) {
+                            numberBuilder.append(equation.charAt(i));
+                            i++;
+                        }
+                        if (numberBuilder.length() == 0) {
+                            return "Error: The equation is not properly formatted.";
+                        }
+                        double number = Double.parseDouble(numberBuilder.toString());
+                        // Apply the function
+                        switch (function) {
+                            case "sin":
+                                numbers.push(Math.sin(number));
+                                break;
+                            case "cos":
+                                numbers.push(Math.cos(number));
+                                break;
+                            case "tan":
+                                numbers.push(Math.tan(number));
+                                break;
+                            case "log":
+                                numbers.push(Math.log10(number));
+                                break;
+                            case "sqt":
+                                numbers.push(Math.sqrt(number));
+                                break;
+                        }
+                    } else if (i < equation.length() - 2) {
+                        function = equation.substring(i, i + 2);
+                        if (function.equals("pi")) {
+                            numbers.push(Math.PI);
+                            i += 2; // Skip the pi
+                        } else if (function.equals("ln")) {
+                            i += 2; // Skip the ln
+                            if (equation.charAt(i) == '(') {
+                                i++; // Skip the opening bracket
+                            }
+                            // Build the number
+                            StringBuilder numberBuilder = new StringBuilder();
+                            while (i < equation.length() && (Character.isDigit(equation.charAt(i)) || equation.charAt(i) == '.')) {
+                                numberBuilder.append(equation.charAt(i));
+                                i++;
+                            }
+                            if (numberBuilder.length() == 0) {
+                                return "Error: The equation is not properly formatted.";
+                            }
+                            double number = Double.parseDouble(numberBuilder.toString());
+                            numbers.push(Math.log(number));
+                        }
+                    }
+                } else if (c == '^') {
+                    operators.push(c);
+                }
+            }
+        }
+
+        // Process remaining operators
+        while (!operators.isEmpty()) {
+            if (numbers.size() < 2) {
+                return "Error: The equation is not properly formatted.";
+            }
+            processOperation(numbers, operators);
+        }
+
+        if (numbers.size() != 1) {
+            return "Error: The equation is not properly formatted.";
+        }
+
+        return String.valueOf(numbers.pop());
+    }
+
+    private static void processOperation(Stack<Double> numbers, Stack<Character> operators) {
+        if (numbers.size() < 2) {
+            throw new IllegalArgumentException("The equation is not properly formatted.");
+        }
+        double secondOperand = numbers.pop();
+        double firstOperand = numbers.pop();
+        char operator = operators.pop();
+        numbers.push(applyOperation(operator, firstOperand, secondOperand));
+    }
+
+    private static boolean hasHigherPrecedence(char firstOperator, char secondOperator) {
+        if (firstOperator == '(' || secondOperator == '(') {
+            return false;
+        }
+        if ((firstOperator == '+' || firstOperator == '-') && (secondOperator == '*' || secondOperator == '/' || secondOperator == '^')) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    private static double applyOperation(char operator, double firstOperand, double secondOperand) {
+        switch (operator) {
+            case '+': return firstOperand + secondOperand;
+            case '-': return firstOperand - secondOperand;
+            case '*': return firstOperand * secondOperand;
+            case '/': return firstOperand / secondOperand;
+            case '^': return Math.pow(firstOperand, secondOperand);
+            default: throw new IllegalArgumentException("Unsupported operator: " + operator);
         }
     }
 
